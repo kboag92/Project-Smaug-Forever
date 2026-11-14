@@ -7,7 +7,7 @@ import { factionFromName, pickHouses, type HouseCandidate } from "./process/pick
 import { createDatabase, markHouseUnlisted, recordFailedScan, saveMarkets, upsertHouse } from "./store/database.js";
 import { findUnnamedItemIds, listKnownHouses, markNameAttempts, saveItems } from "./store/items.js";
 
-// One pass: read the configured factions, keep the fullest unique book, store the four datapoints.
+// One pass: read the configured auction house and store its four datapoints.
 async function main(): Promise<void> {
   loadLocalEnv();
 
@@ -29,6 +29,11 @@ async function main(): Promise<void> {
     // Horde and Blackwater are not downloaded when they are absent from scanConfig.factions.
     if (!scanConfig.factions.includes(faction)) {
       console.log(`Skipping house ${entry.id} (${entry.name}): ${faction} is not in this scan.`);
+      continue;
+    }
+    // Several Alliance houses share this ruleset. Only the chosen id is the market we publish.
+    if (entry.id !== scanConfig.houseId) {
+      console.log(`Skipping house ${entry.id} (${entry.name}): this scan stores house ${scanConfig.houseId}.`);
       continue;
     }
 
@@ -71,14 +76,14 @@ async function main(): Promise<void> {
       await saveMarkets(db, houseId, markets, scannedAt, scanConfig.dailyRetentionDays);
       for (const market of markets) seenItemIds.add(market.itemId);
       savedHouses += 1;
-      console.log(`Saved ${markets.length} items for ${house.name}.`);
+      console.log(`Saved ${markets.length} items for ${house.name} (Blizzard house ${house.blizzardId}).`);
     } catch (error) {
       console.error(`Failed to save ${house.name}:`, error);
       if (houseId != null) await tryRecordFailure(db, houseId, scannedAt);
     }
   }
 
-  await retireSkippedHouses(db, fetched, chosenIds);
+  if (savedHouses > 0) await retireSkippedHouses(db, chosenIds);
   await storeNewItemNames(db, client, [...seenItemIds]);
 
   if (chosen.length > 0 && savedHouses === 0) {
@@ -119,19 +124,17 @@ async function tryRecordFailure(
   }
 }
 
-// Houses we read but did not keep (empty or a duplicate book) should not stay "listed".
+// Older houses for this ruleset stay in history, but their latest rows are no longer the market.
 async function retireSkippedHouses(
   db: ReturnType<typeof createDatabase>,
-  fetched: HouseCandidate[],
   chosenIds: Set<number>,
 ): Promise<void> {
-  const fetchedIds = new Set(fetched.map((house) => house.blizzardId));
   try {
     const known = await listKnownHouses(db, scanConfig.region, scanConfig.rulesetId);
     for (const house of known) {
-      if (chosenIds.has(house.blizzardId) || !fetchedIds.has(house.blizzardId)) continue;
+      if (chosenIds.has(house.blizzardId)) continue;
       await markHouseUnlisted(db, house.id, new Date());
-      console.log(`Marked house ${house.blizzardId} unlisted because this scan did not keep it.`);
+      console.log(`Marked house ${house.blizzardId} unlisted because this scan stores another house.`);
     }
   } catch (error) {
     console.error("Could not retire skipped houses:", error);

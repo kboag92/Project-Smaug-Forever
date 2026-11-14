@@ -52,7 +52,7 @@
     const trimmed = String(query || "").trim();
     if (!trimmed) return [];
     if (/^\d+$/.test(trimmed)) {
-      const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&item_id=eq." + trimmed);
+      const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&is_listed=eq.true&item_id=eq." + trimmed);
       const named = await rest("items?select=id,name&id=eq." + trimmed);
       const name = named[0] ? named[0].name : null;
       return prices.map((row) => asHit(row, name));
@@ -61,7 +61,7 @@
     const named = await rest("items?select=id,name&name=ilike.*" + encodeURIComponent(safe) + "*&limit=20");
     if (!named.length) return [];
     const ids = named.map((row) => row.id).join(",");
-    const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&item_id=in.(" + ids + ")");
+    const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&is_listed=eq.true&item_id=in.(" + ids + ")");
     const names = new Map(named.map((row) => [row.id, row.name]));
     return prices.map((row) => asHit(row, names.get(row.item_id)));
   }
