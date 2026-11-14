@@ -18,6 +18,7 @@ const pages: Record<string, string> = {
   "/alerts.js": "alerts.js",
   "/alert-list.js": "alert-list.js",
   "/data.js": "data.js",
+  "/graph.js": "graph.js",
   "/cycles": "cycles.html",
   "/cycles.html": "cycles.html",
   "/cycles.js": "cycles.js",

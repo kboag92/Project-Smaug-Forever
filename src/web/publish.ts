@@ -12,6 +12,7 @@ const pages = [
   "alert-list.js",
   "cycles.js",
   "data.js",
+  "graph.js",
 ];
 
 const webDir = dirname(fileURLToPath(import.meta.url));

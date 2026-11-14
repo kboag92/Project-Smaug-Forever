@@ -67,6 +67,7 @@
   </main>
   <script src="config.js"></script>
   <script src="data.js"></script>
+  <script src="graph.js"></script>
   <script src="alert-list.js"></script>
   <script src="alerts.js"></script>
   <script>
@@ -82,51 +83,14 @@
       open: (row) => showHistory({ itemId: row.itemId, houseId: row.houseId, name: row.name, p10: row.last || 0 }),
     });
 
-    function watchLines(labels) {
-      if (!currentHit) return [];
-      return PriceAlerts.watchesFor(currentHit.itemId, currentHit.houseId).map((watch) => ({
-        label: "Alert " + alerts.formatCopper(watch.price),
-        data: labels.map(() => watch.price / 10000),
-        borderColor: "#f0635a",
-        borderDash: [6, 4],
-        pointRadius: labels.length < 2 ? 4 : 0,
-        borderWidth: 2,
-        tension: 0,
-      }));
-    }
-
     function draw(points) {
       currentPoints = points;
-      const labels = points.map((point) => new Date(point.scanned_at).toLocaleString());
-      const series = (key) => points.map((point) => point[key] / 10000);
       if (chart) chart.destroy();
-      chart = new Chart(document.querySelector("#chart"), {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            { label: "P10", data: series("p10_price"), borderColor: "#e0b44f", tension: 0.15 },
-            { label: "Median", data: series("median_price"), borderColor: "#d7d2c8", tension: 0.15 },
-            { label: "Average", data: series("average_price"), borderColor: "#6ea8fe", tension: 0.15 },
-          ].concat(watchLines(labels)),
-        },
-        options: {
-          responsive: true,
-          onClick(event) { setAlertAt(event.y); },
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label(context) {
-                  return context.dataset.label + ": " + alerts.formatCopper(Math.round(context.parsed.y * 10000));
-                },
-              },
-            },
-          },
-          scales: {
-            x: { ticks: { color: "#cbb892", maxTicksLimit: 8 } },
-            y: { ticks: { color: "#cbb892" }, title: { display: true, text: "Gold", color: "#f3e6c8" } },
-          },
-        },
+      const watches = currentHit ? PriceAlerts.watchesFor(currentHit.itemId, currentHit.houseId) : [];
+      chart = PriceChart.draw(document.querySelector("#chart"), points, {
+        watches,
+        formatCopper: alerts.formatCopper,
+        onClickY: setAlertAt,
       });
     }
 
