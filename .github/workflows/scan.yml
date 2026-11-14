@@ -2,8 +2,9 @@ name: Auction scan
 
 on:
   schedule:
-    # Every 15 minutes. GitHub may start the job a few minutes late.
-    - cron: "*/15 * * * *"
+    # Every 15 minutes, offset from :00/:15/:30/:45.
+    # GitHub often delays or drops runs that start on those busy minutes.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 # One scan at a time. A slow run waits, and an older waiting run is dropped.
