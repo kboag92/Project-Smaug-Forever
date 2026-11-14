@@ -14,7 +14,8 @@
   }
 
   function same(row, entry) {
-    if (entry.itemId) return row.itemId === entry.itemId && row.houseId === entry.houseId;
+    // One line per item. A later search replaces the copy from the old auction house.
+    if (entry.itemId && row.itemId === entry.itemId) return true;
     const query = String(entry.query || "").trim().toLowerCase();
     return !row.itemId && String(row.query || "").trim().toLowerCase() === query;
   }

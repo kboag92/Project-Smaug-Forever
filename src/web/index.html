@@ -83,7 +83,10 @@
     const alerts = PriceAlerts.bind({
       hit: () => currentHit,
       redraw: () => { if (currentPoints.length) draw(currentPoints); },
-      open: (row) => showHistory({ itemId: row.itemId, houseId: row.houseId, name: row.name, p10: row.last || 0 }),
+      open: (row) => {
+        queryNode.value = String(row.itemId);
+        document.querySelector("#search-form").requestSubmit();
+      },
     });
 
     function draw(points) {
@@ -132,14 +135,9 @@
       alerts.renderWatches();
     }
 
-    // Clicking a recent item opens its chart. A name with several hits runs that search again.
+    // A saved house id can be the old book. Search again so the chart uses the listed house.
     const recent = RecentSearches.mount(document.querySelector("#recent"), document.querySelector("#recent-label"), (row) => {
-      if (row.itemId && row.houseId) {
-        queryNode.value = String(row.itemId);
-        showHistory({ itemId: row.itemId, houseId: row.houseId, name: row.name, p10: row.p10 || 0 }, true);
-        return;
-      }
-      queryNode.value = row.query;
+      queryNode.value = row.itemId ? String(row.itemId) : row.query;
       document.querySelector("#search-form").requestSubmit();
     });
 
