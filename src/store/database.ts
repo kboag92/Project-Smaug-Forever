@@ -76,14 +76,15 @@ export async function upsertHouse(db: SupabaseClient, house: HouseIdentity): Pro
   return data.id as number;
 }
 
-// Write the four live fields, fold today, then mark items we did not see.
+// Write the four live fields, one row per scan, and today's daily summary.
 // A failed scan must not call this. Last good prices stay listed.
+// scan_prices rows are kept. dailyRetentionDays only trims the daily summary.
 export async function saveMarkets(
   db: SupabaseClient,
   houseId: number,
   markets: ItemMarket[],
   scannedAt: Date,
-  retentionDays: number,
+  dailyRetentionDays: number,
 ): Promise<void> {
   const scannedIso = scannedAt.toISOString();
   // toISOString is UTC, so the first ten characters are the UTC day.
@@ -111,6 +112,18 @@ export async function saveMarkets(
     p10_low: toNumber(market.p10Price, "p10"),
   }));
 
+  // Same four numbers, kept once per scan instead of overwritten.
+  // scanned_at here is the real clock time, not the quarter-hour bucket.
+  const scanRows = markets.map((market) => ({
+    house_id: houseId,
+    item_id: market.itemId,
+    scanned_at: scannedIso,
+    p10_price: toNumber(market.p10Price, "p10"),
+    median_price: toNumber(market.medianPrice, "median"),
+    quantity: market.quantity,
+    average_price: toNumber(market.averagePrice, "average"),
+  }));
+
   for (const batch of chunks(latestRows, CHUNK)) {
     const { error } = await db.from("latest_prices").upsert(batch, { onConflict: "house_id,item_id" });
     raise(error);
@@ -118,6 +131,13 @@ export async function saveMarkets(
 
   for (const batch of chunks(dailyRows, CHUNK)) {
     const { error } = await db.rpc("upsert_daily_prices", { rows: batch });
+    raise(error);
+  }
+
+  for (const batch of chunks(scanRows, CHUNK)) {
+    const { error } = await db.from("scan_prices").upsert(batch, {
+      onConflict: "house_id,item_id,scanned_at",
+    });
     raise(error);
   }
 
@@ -129,8 +149,8 @@ export async function saveMarkets(
 
   await recordScan(db, houseId, scannedAt, markets.length, "success");
 
-  // Cleanup is bookkeeping. Prices are already stored if this part fails.
-  const { error: trimError } = await db.rpc("delete_old_daily_prices", { keep_days: retentionDays });
+  // Cleanup is bookkeeping for the daily summary only. scan_prices is not trimmed.
+  const { error: trimError } = await db.rpc("delete_old_daily_prices", { keep_days: dailyRetentionDays });
   if (trimError) console.error("Daily cleanup failed:", trimError.message);
 }
 
