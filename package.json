@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/main.ts",
-    "test": "tsx --test src/process/aggregate.test.ts"
+    "site": "tsx src/web/server.ts",
+    "test": "tsx --test src/process/aggregate.test.ts src/store/items.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.0"

@@ -15,30 +15,57 @@ function chunks<T>(rows: T[], size: number): T[][] {
   return batches;
 }
 
-// Item ids that still have no name, capped at the per-run budget.
-// A row with a null name still counts as missing, so a failed lookup is retried later.
+export type NameAttempt = { name: string | null; fetchedAt: string | null };
+
+// Never-requested ids come first. A failed id is stored with a null name, and it
+// waits until every id from this scan has been requested at least once.
+export function pickNameLookups(
+  itemIds: number[],
+  known: Map<number, NameAttempt>,
+  budget: number,
+): number[] {
+  const unseen: number[] = [];
+  const failed: { id: number; fetchedAt: string }[] = [];
+  for (const itemId of itemIds) {
+    const row = known.get(itemId);
+    if (!row) unseen.push(itemId);
+    else if (!row.name) failed.push({ id: itemId, fetchedAt: row.fetchedAt ?? "" });
+  }
+  if (unseen.length > 0) return unseen.slice(0, budget);
+  failed.sort((a, b) => a.fetchedAt.localeCompare(b.fetchedAt) || a.id - b.id);
+  return failed.slice(0, budget).map((row) => row.id);
+}
+
 export async function findUnnamedItemIds(
   db: SupabaseClient,
   itemIds: number[],
   budget: number,
 ): Promise<number[]> {
-  const named = new Set<number>();
+  const known = new Map<number, NameAttempt>();
 
   for (const batch of chunks(itemIds, 200)) {
-    const { data, error } = await db.from("items").select("id, name").in("id", batch);
+    const { data, error } = await db.from("items").select("id, name, fetched_at").in("id", batch);
     raise(error);
     for (const row of data ?? []) {
-      if (row.name) named.add(row.id as number);
+      known.set(row.id as number, {
+        name: (row.name as string | null) ?? null,
+        fetchedAt: (row.fetched_at as string | null) ?? null,
+      });
     }
   }
 
-  const missing: number[] = [];
-  for (const itemId of itemIds) {
-    if (named.has(itemId)) continue;
-    missing.push(itemId);
-    if (missing.length >= budget) break;
-  }
-  return missing;
+  return pickNameLookups(itemIds, known, budget);
+}
+
+// A failed lookup still counts as requested, so the next scan can move on.
+export async function markNameAttempts(db: SupabaseClient, itemIds: number[]): Promise<void> {
+  if (itemIds.length === 0) return;
+  const fetchedAt = new Date().toISOString();
+  const { error } = await db.from("items").upsert(
+    itemIds.map((id) => ({ id, name: null, fetched_at: fetchedAt })),
+    { onConflict: "id" },
+  );
+  raise(error);
 }
 
 export async function saveItems(db: SupabaseClient, items: ItemProfile[]): Promise<void> {

@@ -5,7 +5,7 @@ import { loadLocalEnv, requireEnv } from "./env.js";
 import { aggregateMarkets } from "./process/aggregate.js";
 import { factionFromName, pickHouses, type HouseCandidate } from "./process/pick-houses.js";
 import { createDatabase, markHouseUnlisted, recordFailedScan, saveMarkets, upsertHouse } from "./store/database.js";
-import { findUnnamedItemIds, listKnownHouses, saveItems } from "./store/items.js";
+import { findUnnamedItemIds, listKnownHouses, markNameAttempts, saveItems } from "./store/items.js";
 
 // One pass: read the configured factions, keep the fullest unique book, store the four datapoints.
 async function main(): Promise<void> {
@@ -147,10 +147,12 @@ async function storeNewItemNames(
   try {
     const missing = await findUnnamedItemIds(db, itemIds, scanConfig.itemNameBudget);
     const profiles = [];
+    const failed: number[] = [];
     for (const itemId of missing) {
       try {
         profiles.push(await fetchItemProfile(client, itemId));
       } catch (error) {
+        failed.push(itemId);
         console.error(`Item ${itemId} name lookup failed:`, error);
       }
     }
@@ -158,6 +160,9 @@ async function storeNewItemNames(
       await saveItems(db, profiles);
       console.log(`Stored names for ${profiles.length} items.`);
     }
+    // Record the miss so this id is not first in line again while others are still unasked.
+    await markNameAttempts(db, failed);
+    if (failed.length > 0) console.log(`Recorded ${failed.length} failed name lookups.`);
   } catch (error) {
     console.error("Item name pass failed:", error);
   }
