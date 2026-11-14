@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forever auction prices</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: Georgia, serif; background: #1a140c; color: #f3e6c8; }
+    main { max-width: 960px; margin: 0 auto; padding: 32px 20px 48px; }
+    h1 { font-weight: normal; font-size: 28px; margin: 0 0 8px; }
+    p { color: #cbb892; }
+    form { display: flex; gap: 8px; margin: 20px 0; }
+    input { flex: 1; padding: 10px 12px; font: inherit; background: #2a2116; color: inherit; border: 1px solid #6b5428; }
+    button { font: inherit; background: #8a6a2f; color: #fff8e8; border: 0; padding: 10px 16px; cursor: pointer; }
+    ul { list-style: none; padding: 0; margin: 0 0 24px; }
+    li + li { margin-top: 8px; }
+    li button { width: 100%; text-align: left; background: #2a2116; border: 1px solid #6b5428; }
+    #chart-wrap { background: #241c12; border: 1px solid #6b5428; padding: 16px; min-height: 360px; }
+    #status { min-height: 1.4em; }
+    #alerts { margin: 16px 0 28px; }
+    #alerts h2 { font-weight: normal; font-size: 22px; margin: 0; cursor: pointer; } #alert-badge { background: #8a6a2f; border-radius: 10px; padding: 0 8px; font-size: 14px; }
+    #alert-search { max-width: 240px; margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #6b5428; }
+    th { color: #cbb892; font-size: 12px; cursor: pointer; }
+    td.above { color: #7dcea0; } td.below { color: #f0635a; } td.watch { color: #e0b44f; } a { color: #e0b44f; }
+    tr.unread { background: rgba(224, 180, 79, 0.14); }
+    #alert-rows tr { cursor: pointer; }
+    td button.x { width: auto; background: transparent; color: #f0635a; padding: 0 8px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Forever auction prices</h1>
+    <p>Search a name or an item id. Click the chart to set a P10 alert. <a href="cycles.html">Cycles</a> lists daily dips and peaks.</p>
+    <button id="allow" type="button">Allow desktop alerts</button>
+    <section id="alerts">
+      <h2 id="alerts-title">Alerts <span id="alert-badge" hidden></span></h2>
+      <p>Watches stay until you remove them. ABOVE and BELOW are crosses. Click a row for its chart. Click Alerts to mark fires read.</p>
+      <input id="alert-search" placeholder="Search alerts" autocomplete="off">
+      <p id="alert-count"></p>
+      <table>
+        <thead id="alert-head">
+          <tr>
+            <th data-sort="kind">Type</th>
+            <th data-sort="name">Item</th>
+            <th data-sort="price">Level</th>
+            <th data-sort="last">P10</th>
+            <th data-sort="time">When</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="alert-rows"></tbody>
+      </table>
+    </section>
+    <form id="search-form">
+      <input id="query" name="q" placeholder="Item name or id" autocomplete="off">
+      <button type="submit">Search</button>
+    </form>
+    <p id="status"></p>
+    <ul id="results"></ul>
+    <div id="chart-wrap">
+      <canvas id="chart" height="140"></canvas>
+    </div>
+  </main>
+  <script src="config.js"></script>
+  <script src="data.js"></script>
+  <script src="alert-list.js"></script>
+  <script src="alerts.js"></script>
+  <script>
+    const statusNode = document.querySelector("#status");
+    const resultsNode = document.querySelector("#results");
+    const queryNode = document.querySelector("#query");
+    let chart;
+    let currentHit = null;
+    let currentPoints = [];
+    const alerts = PriceAlerts.bind({
+      hit: () => currentHit,
+      redraw: () => { if (currentPoints.length) draw(currentPoints); },
+      open: (row) => showHistory({ itemId: row.itemId, houseId: row.houseId, name: row.name, p10: row.last || 0 }),
+    });
+
+    function watchLines(labels) {
+      if (!currentHit) return [];
+      return PriceAlerts.watchesFor(currentHit.itemId, currentHit.houseId).map((watch) => ({
+        label: "Alert " + alerts.formatCopper(watch.price),
+        data: labels.map(() => watch.price / 10000),
+        borderColor: "#f0635a",
+        borderDash: [6, 4],
+        pointRadius: labels.length < 2 ? 4 : 0,
+        borderWidth: 2,
+        tension: 0,
+      }));
+    }
+
+    function draw(points) {
+      currentPoints = points;
+      const labels = points.map((point) => new Date(point.scanned_at).toLocaleString());
+      const series = (key) => points.map((point) => point[key] / 10000);
+      if (chart) chart.destroy();
+      chart = new Chart(document.querySelector("#chart"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "P10", data: series("p10_price"), borderColor: "#e0b44f", tension: 0.15 },
+            { label: "Median", data: series("median_price"), borderColor: "#d7d2c8", tension: 0.15 },
+            { label: "Average", data: series("average_price"), borderColor: "#6ea8fe", tension: 0.15 },
+          ].concat(watchLines(labels)),
+        },
+        options: {
+          responsive: true,
+          onClick(event) { setAlertAt(event.y); },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label(context) {
+                  return context.dataset.label + ": " + alerts.formatCopper(Math.round(context.parsed.y * 10000));
+                },
+              },
+            },
+          },
+          scales: {
+            x: { ticks: { color: "#cbb892", maxTicksLimit: 8 } },
+            y: { ticks: { color: "#cbb892" }, title: { display: true, text: "Gold", color: "#f3e6c8" } },
+          },
+        },
+      });
+    }
+
+    function setAlertAt(pixelY) {
+      if (!currentHit || !currentPoints.length || !chart) return;
+      const copper = Math.round(chart.scales.y.getValueForPixel(pixelY) * 10000);
+      const last = currentPoints[currentPoints.length - 1];
+      const result = PriceAlerts.addWatch(currentHit, copper, last.p10_price, last.scanned_at);
+      statusNode.textContent = result.ok ? "Alert: P10 crosses " + alerts.formatCopper(copper) : result.reason;
+      if (!result.ok) return;
+      draw(currentPoints);
+      alerts.renderWatches();
+    }
+
+    async function showHistory(hit) {
+      statusNode.textContent = "Loading " + (hit.name || "item " + hit.itemId) + "…";
+      let points;
+      try {
+        points = await AuctionData.history(hit.itemId, hit.houseId);
+      } catch (error) {
+        statusNode.textContent = error.message || "Could not load the graph.";
+        return;
+      }
+      if (!points.length) {
+        currentHit = null;
+        currentPoints = [];
+        statusNode.textContent = "No scans stored for this item yet.";
+        if (chart) chart.destroy();
+        alerts.renderWatches();
+        return;
+      }
+      currentHit = hit;
+      statusNode.textContent = (hit.name || "Item " + hit.itemId) + " · " + points.length + " scans · latest P10 " + alerts.formatCopper(hit.p10) + " · click the chart to set an alert";
+      draw(points);
+      alerts.renderWatches();
+    }
+
+    function showResults(results) {
+      resultsNode.replaceChildren();
+      if (!results.length) {
+        statusNode.textContent = "No matching items. Try an item id, or a name that has already been stored.";
+        return;
+      }
+      statusNode.textContent = results.length + " match" + (results.length === 1 ? "" : "es") + ".";
+      for (const hit of results) {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = (hit.name || "Item " + hit.itemId) + " · #" + hit.itemId + " · P10 " + alerts.formatCopper(hit.p10);
+        button.addEventListener("click", () => showHistory(hit));
+        item.append(button);
+        resultsNode.append(item);
+      }
+      if (results.length === 1) showHistory(results[0]);
+    }
+    document.querySelector("#search-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      statusNode.textContent = "Searching…";
+      try {
+        showResults(await AuctionData.search(queryNode.value));
+      } catch (error) {
+        statusNode.textContent = error.message || "Search failed.";
+      }
+    });
+    const openItem = new URLSearchParams(location.search).get("item");
+    if (openItem) { queryNode.value = openItem; document.querySelector("#search-form").requestSubmit(); }
+  </script>
+</body>
+</html>
