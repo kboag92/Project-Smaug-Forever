@@ -35,11 +35,13 @@
     return rows;
   }
 
-  function asHit(row, name) {
+  function asHit(row, profile) {
     return {
       itemId: row.item_id,
       houseId: row.house_id,
-      name: name || null,
+      name: profile && profile.name ? profile.name : null,
+      // The icon is stored with the name. A missing one leaves the label as text.
+      icon: profile && profile.icon ? profile.icon : null,
       p10: row.p10_price,
       median: row.median_price,
       average: row.average_price,
@@ -48,22 +50,35 @@
     };
   }
 
+  // Put the stored icon in front of a name. No icon means the text stands alone.
+  function face(parent, icon, text) {
+    parent.replaceChildren();
+    if (icon) {
+      const img = document.createElement("img");
+      img.className = "item-icon";
+      img.alt = "";
+      img.src = icon;
+      parent.append(img);
+    }
+    parent.append(document.createTextNode(text));
+  }
+
   async function search(query) {
     const trimmed = String(query || "").trim();
     if (!trimmed) return [];
     if (/^\d+$/.test(trimmed)) {
       const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&is_listed=eq.true&item_id=eq." + trimmed);
-      const named = await rest("items?select=id,name&id=eq." + trimmed);
-      const name = named[0] ? named[0].name : null;
-      return prices.map((row) => asHit(row, name));
+      const named = await rest("items?select=id,name,icon_url&id=eq." + trimmed);
+      const profile = named[0] ? { name: named[0].name, icon: named[0].icon_url } : null;
+      return prices.map((row) => asHit(row, profile));
     }
     const safe = trimmed.replace(/[%_*]/g, "");
-    const named = await rest("items?select=id,name&name=ilike.*" + encodeURIComponent(safe) + "*&limit=20");
+    const named = await rest("items?select=id,name,icon_url&name=ilike.*" + encodeURIComponent(safe) + "*&limit=20");
     if (!named.length) return [];
     const ids = named.map((row) => row.id).join(",");
     const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&is_listed=eq.true&item_id=in.(" + ids + ")");
-    const names = new Map(named.map((row) => [row.id, row.name]));
-    return prices.map((row) => asHit(row, names.get(row.item_id)));
+    const profiles = new Map(named.map((row) => [row.id, { name: row.name, icon: row.icon_url }]));
+    return prices.map((row) => asHit(row, profiles.get(row.item_id)));
   }
 
   function history(itemId, houseId) {
@@ -83,9 +98,9 @@
     const since = new Date(Date.now() - 21 * 86400000).toISOString();
     const [raw, named] = await Promise.all([
       allRows("scan_prices?select=item_id,scanned_at,p10_price,median_price,quantity&house_id=eq." + houseId + "&scanned_at=gte." + encodeURIComponent(since) + "&order=scanned_at.asc", 120000),
-      allRows("items?select=id,name&name=not.is.null", 5000),
+      allRows("items?select=id,name,icon_url&name=not.is.null", 5000),
     ]);
-    const names = new Map(named.filter((row) => row.name).map((row) => [row.id, row.name]));
+    const names = new Map(named.filter((row) => row.name).map((row) => [row.id, { name: row.name, icon: row.icon_url }]));
     const grouped = new Map();
     const days = new Set();
     for (const row of raw) {
@@ -101,7 +116,8 @@
       days.add(day);
       let item = grouped.get(row.item_id);
       if (!item) {
-        item = { itemId: row.item_id, name: names.get(row.item_id) || "", points: [] };
+        const namedItem = names.get(row.item_id);
+        item = { itemId: row.item_id, name: namedItem ? namedItem.name : "", icon: namedItem ? namedItem.icon : null, points: [] };
         grouped.set(row.item_id, item);
       }
       const qty = row.quantity == null ? null : Number(row.quantity);
@@ -118,5 +134,5 @@
     return { houseId, scanCount: raw.length, days: days.size, rows: window.CycleScore.findCycles([...grouped.values()]) };
   }
 
-  window.AuctionData = { search, history, latest, cycles };
+  window.AuctionData = { search, history, latest, cycles, face };
 })();

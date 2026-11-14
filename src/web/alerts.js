@@ -39,6 +39,7 @@
       itemId: item.itemId,
       houseId: item.houseId,
       name: item.name || "",
+      icon: item.icon || "",
       price: copper,
       // Snapshot so the price already on the chart does not fire immediately.
       last: Number.isFinite(Number(lastP10)) ? Number(lastP10) : null,
@@ -65,13 +66,13 @@
     const state = load();
     const list = state.watches.map((watch) => ({
       kind: "watch", id: watch.id, itemId: watch.itemId, houseId: watch.houseId,
-      name: watch.name, price: watch.price, last: watch.last, time: watch.ts || 0, unread: false,
+      name: watch.name, icon: watch.icon || "", price: watch.price, last: watch.last, time: watch.ts || 0, unread: false,
     }));
     for (let i = state.events.length - 1; i >= 0; i--) {
       const event = state.events[i];
       list.push({
         kind: "event", id: event.id, itemId: event.itemId, houseId: event.houseId,
-        name: event.name, price: event.price, last: event.now, side: event.side,
+        name: event.name, icon: event.icon || "", price: event.price, last: event.now, side: event.side,
         time: event.ts || 0, unread: !event.read,
       });
     }
@@ -113,6 +114,7 @@
         itemId: watch.itemId,
         houseId: watch.houseId,
         name: watch.name,
+        icon: watch.icon || "",
         price: watch.price,
         now: nowP,
         side,

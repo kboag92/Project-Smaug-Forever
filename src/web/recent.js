@@ -30,6 +30,7 @@
       itemId: entry.itemId || null,
       houseId: entry.houseId || null,
       name: entry.name || null,
+      icon: entry.icon || null,
       p10: entry.p10 == null ? null : entry.p10,
       at: Date.now(),
     });
@@ -52,7 +53,7 @@
         const item = document.createElement("li");
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = label(row);
+        AuctionData.face(button, row.icon, label(row));
         button.addEventListener("click", () => onPick(row));
         item.append(button);
         listNode.append(item);

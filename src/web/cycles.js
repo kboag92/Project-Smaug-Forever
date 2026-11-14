@@ -68,8 +68,9 @@
       ];
       cells.forEach((cell, index) => {
         const td = document.createElement("td");
-        td.textContent = cell[0];
         td.className = cell[1];
+        if (index === 0) AuctionData.face(td, row.icon, cell[0]);
+        else td.textContent = cell[0];
         if (index === 8) td.title = row.confMode === "same" ? "Same-day windows" : "Cross-day fallback";
         tr.append(td);
       });

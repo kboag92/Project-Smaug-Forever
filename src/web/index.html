@@ -16,7 +16,8 @@
     button { font: inherit; background: #8a6a2f; color: #fff8e8; border: 0; padding: 10px 16px; cursor: pointer; }
     ul { list-style: none; padding: 0; margin: 0 0 24px; }
     li + li { margin-top: 8px; }
-    li button { width: 100%; text-align: left; background: #2a2116; border: 1px solid #6b5428; }
+    li button { width: 100%; text-align: left; background: #2a2116; border: 1px solid #6b5428; display: flex; align-items: center; }
+    .item-icon { width: 28px; height: 28px; margin-right: 8px; image-rendering: pixelated; }
     #chart-wrap { background: #241c12; border: 1px solid #6b5428; padding: 16px; min-height: 360px; }
     #status { min-height: 1.4em; }
     #alerts { margin: 16px 0 28px; }
@@ -29,6 +30,7 @@
     tr.unread { background: rgba(224, 180, 79, 0.14); }
     #alert-rows tr { cursor: pointer; }
     td button.x { width: auto; background: transparent; color: #f0635a; padding: 0 8px; }
+    #status { display: flex; align-items: center; }
   </style>
 </head>
 <body>
@@ -112,7 +114,7 @@
     }
 
     async function showHistory(hit, remember) {
-      if (remember) recent.remember({ query: queryNode.value, itemId: hit.itemId, houseId: hit.houseId, name: hit.name, p10: hit.p10 });
+      if (remember) recent.remember({ query: queryNode.value, itemId: hit.itemId, houseId: hit.houseId, name: hit.name, icon: hit.icon, p10: hit.p10 });
       statusNode.textContent = "Loading " + (hit.name || "item " + hit.itemId) + "…";
       let points;
       try {
@@ -130,7 +132,7 @@
         return;
       }
       currentHit = hit;
-      statusNode.textContent = (hit.name || "Item " + hit.itemId) + " · " + points.length + " scans · latest P10 " + alerts.formatCopper(hit.p10) + " · click the chart to set an alert";
+      AuctionData.face(statusNode, hit.icon, (hit.name || "Item " + hit.itemId) + " · " + points.length + " scans · latest P10 " + alerts.formatCopper(hit.p10) + " · click the chart to set an alert");
       draw(points);
       alerts.renderWatches();
     }
@@ -152,7 +154,7 @@
         const item = document.createElement("li");
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = (hit.name || "Item " + hit.itemId) + " · #" + hit.itemId + " · P10 " + alerts.formatCopper(hit.p10);
+        AuctionData.face(button, hit.icon, (hit.name || "Item " + hit.itemId) + " · #" + hit.itemId + " · P10 " + alerts.formatCopper(hit.p10));
         button.addEventListener("click", () => showHistory(hit, true));
         item.append(button);
         resultsNode.append(item);

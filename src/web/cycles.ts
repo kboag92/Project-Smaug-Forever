@@ -27,11 +27,12 @@ export type CyclePoint = {
   at: number;
 };
 
-export type CycleItem = { itemId: number; name: string; points: CyclePoint[] };
+export type CycleItem = { itemId: number; name: string; icon?: string | null; points: CyclePoint[] };
 
 export type CycleRow = {
   itemId: number;
   name: string;
+  icon: string | null;
   cheap: string;
   low: number;
   rich: string;
@@ -168,6 +169,7 @@ export function findCycles(items: CycleItem[]): CycleRow[] {
     rows.push({
       itemId: item.itemId,
       name: item.name,
+      icon: item.icon || null,
       cheap: winLabel(cheap.start),
       low,
       rich: winLabel(rich.start),

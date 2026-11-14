@@ -78,8 +78,9 @@
         ];
         cells.forEach((text, index) => {
           const td = document.createElement("td");
-          td.textContent = text;
-          if (index === 0) td.className = type.toLowerCase();
+          td.className = index === 0 ? type.toLowerCase() : "";
+          if (index === 1) AuctionData.face(td, row.icon, text);
+          else td.textContent = text;
           tr.append(td);
         });
         const remove = document.createElement("button");
