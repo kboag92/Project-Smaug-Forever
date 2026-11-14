@@ -67,7 +67,7 @@
   }
 
   function history(itemId, houseId) {
-    return rest("scan_prices?select=scanned_at,p10_price,median_price,average_price,quantity&item_id=eq." + itemId + "&house_id=eq." + houseId + "&order=scanned_at.asc&limit=2000");
+    return rest("scan_prices?select=scanned_at,p10_price,band_price,median_price,average_price,quantity&item_id=eq." + itemId + "&house_id=eq." + houseId + "&order=scanned_at.asc&limit=2000");
   }
 
   async function latest(itemId, houseId) {

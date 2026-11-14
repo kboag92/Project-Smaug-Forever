@@ -7,11 +7,13 @@ export type PricedStack = {
   cost: bigint;
 };
 
-// The four numbers we keep for an item on one house.
+// The prices we keep for an item on one house.
 // Every price is integer copper, rounded to the nearest copper.
+// bandPrice is the average of the units after the cheapest 10% and through the middle.
 export type ItemMarket = {
   itemId: number;
   p10Price: bigint;
+  bandPrice: bigint;
   medianPrice: bigint;
   quantity: number;
   averagePrice: bigint;
@@ -36,16 +38,24 @@ function cheaperFirst(a: PricedStack, b: PricedStack): number {
   return 0;
 }
 
-// Average copper of the cheapest numerator/denominator of the units.
+// One cheapest-first cut. cost is the copper of the units taken, still unrounded.
+// takenScaled is those units times den, so a cut of 10.5 units at den 10 is 105.
+type SliceTake = {
+  cost: bigint;
+  takenScaled: bigint;
+  den: bigint;
+};
+
+// Walk the cheapest stacks until numerator/denominator of the quantity is taken.
 // The stack that crosses the cut is split, so only part of its cost counts.
 // A listed item always contributes at least one unit. That matters when
 // 10% of a short stack would otherwise be a fraction of one item.
-function sliceAverage(
+function sliceTake(
   sorted: PricedStack[],
   totalQty: number,
   numerator: number,
   denominator: number,
-): bigint {
+): SliceTake {
   const den = BigInt(denominator);
   // Remaining is measured in (units * denominator). 10% of 105 units is 10.5.
   let remaining = BigInt(totalQty) * BigInt(numerator);
@@ -63,11 +73,35 @@ function sliceAverage(
     remaining -= takeScaled;
   }
 
-  if (takenScaled <= 0n) {
+  return { cost, takenScaled, den };
+}
+
+// Average copper of one cheapest-first cut, rounded once at the end.
+function sliceAverage(
+  sorted: PricedStack[],
+  totalQty: number,
+  numerator: number,
+  denominator: number,
+): bigint {
+  const slice = sliceTake(sorted, totalQty, numerator, denominator);
+  if (slice.takenScaled <= 0n) {
     throw new Error("Price slice was empty.");
   }
   // takenScaled is units * denominator, so multiply the cost back up.
-  return roundDiv(cost * den, takenScaled);
+  return roundDiv(slice.cost * slice.den, slice.takenScaled);
+}
+
+// Average copper of the units after the 10% cut and through the 50% cut.
+// The two cuts are subtracted before rounding, so the band is not off by a copper.
+// A one-unit book has nothing left after the 10% cut, so the band is that unit's price.
+function bandPrice(sorted: PricedStack[], totalQty: number, p10Price: bigint): bigint {
+  const low = sliceTake(sorted, totalQty, 1, 10);
+  const mid = sliceTake(sorted, totalQty, 1, 2);
+  // Tenths of a unit. Both cuts divide 10, so this stays exact for 10.5 and 52.5.
+  const lowTenths = (low.takenScaled * 10n) / low.den;
+  const midTenths = (mid.takenScaled * 10n) / mid.den;
+  if (midTenths <= lowTenths) return p10Price;
+  return roundDiv((mid.cost - low.cost) * 10n, midTenths - lowTenths);
 }
 
 // Unit price of the stack that holds the middle unit, counting from the cheapest.
@@ -110,10 +144,13 @@ export function aggregateMarkets(stacks: PricedStack[]): ItemMarket[] {
       totalCost += stack.cost;
     }
 
+    const p10Price = sliceAverage(sorted, totalQty, 1, 10);
     markets.push({
       itemId,
       // P10 is the average price of the cheapest 10% of the quantity.
-      p10Price: sliceAverage(sorted, totalQty, 1, 10),
+      p10Price,
+      // The next slice, through the middle. This is what lags after P10 moves.
+      bandPrice: bandPrice(sorted, totalQty, p10Price),
       medianPrice: medianUnitPrice(sorted, totalQty),
       quantity: totalQty,
       // A stack of 20 counts twenty times more than a stack of 1.

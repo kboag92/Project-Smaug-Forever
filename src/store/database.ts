@@ -76,7 +76,7 @@ export async function upsertHouse(db: SupabaseClient, house: HouseIdentity): Pro
   return data.id as number;
 }
 
-// Write the four live fields, one row per scan, and today's daily summary.
+// Write the live prices, one row per scan, and today's daily summary.
 // A failed scan must not call this. Last good prices stay listed.
 // scan_prices rows are kept. dailyRetentionDays only trims the daily summary.
 export async function saveMarkets(
@@ -97,6 +97,8 @@ export async function saveMarkets(
     median_price: toNumber(market.medianPrice, "median"),
     quantity: market.quantity,
     average_price: toNumber(market.averagePrice, "average"),
+    // Average of the units after the cheapest 10% and through the middle.
+    band_price: toNumber(market.bandPrice, "band"),
     is_listed: true,
     scanned_at: scannedIso,
   }));
@@ -109,10 +111,11 @@ export async function saveMarkets(
     median_price: toNumber(market.medianPrice, "median"),
     quantity: market.quantity,
     average_price: toNumber(market.averagePrice, "average"),
+    band_price: toNumber(market.bandPrice, "band"),
     p10_low: toNumber(market.p10Price, "p10"),
   }));
 
-  // Same four numbers, kept once per scan instead of overwritten.
+  // Same prices, kept once per scan instead of overwritten.
   // scanned_at here is the real clock time, not the quarter-hour bucket.
   const scanRows = markets.map((market) => ({
     house_id: houseId,
@@ -122,6 +125,7 @@ export async function saveMarkets(
     median_price: toNumber(market.medianPrice, "median"),
     quantity: market.quantity,
     average_price: toNumber(market.averagePrice, "average"),
+    band_price: toNumber(market.bandPrice, "band"),
   }));
 
   for (const batch of chunks(latestRows, CHUNK)) {

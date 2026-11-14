@@ -32,7 +32,8 @@
 
   function draw(canvas, points, options) {
     const labels = points.map((point) => new Date(point.scanned_at).toLocaleString());
-    const gold = (key) => points.map((point) => point[key] / 10000);
+    // A missing price is a gap. Dividing null by 10000 would draw the line at zero.
+    const gold = (key) => points.map((point) => (point[key] == null ? null : point[key] / 10000));
     // Missing quantity is a gap. It is not drawn as zero.
     const volume = points.map((point) => (point.quantity == null ? null : Number(point.quantity)));
     return new Chart(canvas, {
@@ -41,6 +42,8 @@
         labels,
         datasets: [
           priceLine("P10", gold("p10_price"), "#e0b44f"),
+          // Units after the cheapest 10% and through the middle of the book.
+          priceLine("10–50", gold("band_price"), "#c084fc"),
           priceLine("Median", gold("median_price"), "#d7d2c8"),
           priceLine("Average", gold("average_price"), "#6ea8fe"),
           {
@@ -63,10 +66,9 @@
           tooltip: {
             callbacks: {
               label(context) {
+                if (context.parsed.y == null) return context.dataset.label + ": unknown";
                 if (context.dataset.yAxisID === "y1") {
-                  const qty = context.parsed.y;
-                  const text = qty == null ? "unknown" : Math.round(qty).toLocaleString();
-                  return "Volume: " + text;
+                  return "Volume: " + Math.round(context.parsed.y).toLocaleString();
                 }
                 return context.dataset.label + ": " + options.formatCopper(Math.round(context.parsed.y * 10000));
               },

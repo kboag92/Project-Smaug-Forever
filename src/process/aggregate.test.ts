@@ -6,6 +6,7 @@ import { pickHouses, type HouseCandidate } from "./pick-houses.js";
 
 // Plan example: 6 at 100, 10 at 200, 84 at 500. Quantity 100.
 // P10 uses the cheapest 10 units: 6*100 + 4*200 = 1400, so 140 copper.
+// The 10–50 band is units 11 through 50: 6*200 + 34*500 = 18200, so 455 copper.
 // The 50th unit sits in the 500 stack. Average is 446.
 test("P10, median, quantity, and average for the 100-unit book", () => {
   const [market] = aggregateMarkets([
@@ -16,6 +17,7 @@ test("P10, median, quantity, and average for the 100-unit book", () => {
 
   assert.equal(market.quantity, 100);
   assert.equal(market.p10Price, 140n);
+  assert.equal(market.bandPrice, 455n);
   assert.equal(market.medianPrice, 500n);
   assert.equal(market.averagePrice, 446n);
 });
@@ -38,6 +40,8 @@ test("a single listed unit uses that price for every field", () => {
 
   assert.equal(market.quantity, 1);
   assert.equal(market.p10Price, 80n);
+  // Nothing is left after the 10% cut, so the band is that same unit.
+  assert.equal(market.bandPrice, 80n);
   assert.equal(market.medianPrice, 80n);
   assert.equal(market.averagePrice, 80n);
 });

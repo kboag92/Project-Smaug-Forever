@@ -2,9 +2,10 @@ name: Auction scan
 
 on:
   schedule:
-    # Every 15 minutes, offset from :00/:15/:30/:45.
-    # GitHub often delays or drops runs that start on those busy minutes.
-    - cron: "7,22,37,52 * * * *"
+    # Once an hour, just after Blizzard publishes the US auction file around :17.
+    # A quarter-hour workflow_dispatch from outside this repo still scans the old file.
+    # Move that dispatcher to 20 minutes past the hour as well.
+    - cron: "20 * * * *"
   workflow_dispatch:
 
 # One scan at a time. A slow run waits, and an older waiting run is dropped.
