@@ -1,0 +1,17 @@
+{
+  "name": "forever-auction-scan",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "test": "tsx --test src/process/aggregate.test.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.86.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
