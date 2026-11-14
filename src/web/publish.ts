@@ -13,6 +13,7 @@ const pages = [
   "cycles.js",
   "data.js",
   "graph.js",
+  "recent.js",
 ];
 
 const webDir = dirname(fileURLToPath(import.meta.url));

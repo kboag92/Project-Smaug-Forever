@@ -59,6 +59,8 @@
       <input id="query" name="q" placeholder="Item name or id" autocomplete="off">
       <button type="submit">Search</button>
     </form>
+    <p id="recent-label" hidden>Recent</p>
+    <ul id="recent"></ul>
     <p id="status"></p>
     <ul id="results"></ul>
     <div id="chart-wrap">
@@ -68,6 +70,7 @@
   <script src="config.js"></script>
   <script src="data.js"></script>
   <script src="graph.js"></script>
+  <script src="recent.js"></script>
   <script src="alert-list.js"></script>
   <script src="alerts.js"></script>
   <script>
@@ -105,7 +108,8 @@
       alerts.renderWatches();
     }
 
-    async function showHistory(hit) {
+    async function showHistory(hit, remember) {
+      if (remember) recent.remember({ query: queryNode.value, itemId: hit.itemId, houseId: hit.houseId, name: hit.name, p10: hit.p10 });
       statusNode.textContent = "Loading " + (hit.name || "item " + hit.itemId) + "…";
       let points;
       try {
@@ -128,6 +132,17 @@
       alerts.renderWatches();
     }
 
+    // Clicking a recent item opens its chart. A name with several hits runs that search again.
+    const recent = RecentSearches.mount(document.querySelector("#recent"), document.querySelector("#recent-label"), (row) => {
+      if (row.itemId && row.houseId) {
+        queryNode.value = String(row.itemId);
+        showHistory({ itemId: row.itemId, houseId: row.houseId, name: row.name, p10: row.p10 || 0 }, true);
+        return;
+      }
+      queryNode.value = row.query;
+      document.querySelector("#search-form").requestSubmit();
+    });
+
     function showResults(results) {
       resultsNode.replaceChildren();
       if (!results.length) {
@@ -140,11 +155,12 @@
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = (hit.name || "Item " + hit.itemId) + " · #" + hit.itemId + " · P10 " + alerts.formatCopper(hit.p10);
-        button.addEventListener("click", () => showHistory(hit));
+        button.addEventListener("click", () => showHistory(hit, true));
         item.append(button);
         resultsNode.append(item);
       }
-      if (results.length === 1) showHistory(results[0]);
+      if (results.length === 1) showHistory(results[0], true);
+      else recent.remember({ query: queryNode.value });
     }
     document.querySelector("#search-form").addEventListener("submit", async (event) => {
       event.preventDefault();
