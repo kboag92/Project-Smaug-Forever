@@ -24,6 +24,9 @@ const pages: Record<string, string> = {
   "/cycles.html": "cycles.html",
   "/cycles.js": "cycles.js",
   "/cycles-score.js": "cycles-score.js",
+  "/coin-gold.svg": "coin-gold.svg",
+  "/coin-silver.svg": "coin-silver.svg",
+  "/coin-copper.svg": "coin-copper.svg",
 };
 
 await buildCycles(webDir);
@@ -43,7 +46,11 @@ createServer((request, response) => {
     response.end("Not found.");
     return;
   }
-  const type = file.endsWith(".js") ? "text/javascript" : "text/html";
+  const type = file.endsWith(".js")
+    ? "text/javascript"
+    : file.endsWith(".svg")
+      ? "image/svg+xml"
+      : "text/html";
   response.writeHead(200, { "Content-Type": `${type}; charset=utf-8` });
   response.end(readFileSync(join(webDir, file)));
 }).listen(port, "127.0.0.1", () => {

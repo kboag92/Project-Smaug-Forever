@@ -16,8 +16,10 @@
     button { font: inherit; background: #8a6a2f; color: #fff8e8; border: 0; padding: 10px 16px; cursor: pointer; }
     ul { list-style: none; padding: 0; margin: 0 0 24px; }
     li + li { margin-top: 8px; }
-    li button { width: 100%; text-align: left; background: #2a2116; border: 1px solid #6b5428; display: flex; align-items: center; }
+    li button { width: 100%; text-align: left; background: #2a2116; border: 1px solid #6b5428; display: flex; align-items: center; flex-wrap: wrap; }
     .item-icon { width: 28px; height: 28px; margin-right: 8px; image-rendering: pixelated; }
+    .coin { display: inline-flex; align-items: center; margin-left: 4px; }
+    .coin-icon { width: 14px; height: 14px; margin-left: 2px; }
     #chart-wrap { background: #241c12; border: 1px solid #6b5428; padding: 16px; min-height: 360px; }
     #status { min-height: 1.4em; }
     #alerts { margin: 16px 0 28px; }
@@ -107,7 +109,8 @@
       const copper = Math.round(chart.scales.y.getValueForPixel(pixelY) * 10000);
       const last = currentPoints[currentPoints.length - 1];
       const result = PriceAlerts.addWatch(currentHit, copper, last.p10_price, last.scanned_at);
-      statusNode.textContent = result.ok ? "Alert: P10 crosses " + alerts.formatCopper(copper) : result.reason;
+      statusNode.replaceChildren(document.createTextNode(result.ok ? "Alert: P10 crosses " : result.reason));
+      if (result.ok) AuctionData.paintMoney(statusNode, copper);
       if (!result.ok) return;
       draw(currentPoints);
       alerts.renderWatches();
@@ -132,7 +135,9 @@
         return;
       }
       currentHit = hit;
-      AuctionData.face(statusNode, hit.icon, (hit.name || "Item " + hit.itemId) + " · " + points.length + " scans · latest P10 " + alerts.formatCopper(hit.p10) + " · click the chart to set an alert");
+      AuctionData.face(statusNode, hit.icon, (hit.name || "Item " + hit.itemId) + " · " + points.length + " scans · latest P10 ");
+      AuctionData.paintMoney(statusNode, hit.p10);
+      statusNode.append(document.createTextNode(" · click the chart to set an alert"));
       draw(points);
       alerts.renderWatches();
     }
@@ -154,7 +159,8 @@
         const item = document.createElement("li");
         const button = document.createElement("button");
         button.type = "button";
-        AuctionData.face(button, hit.icon, (hit.name || "Item " + hit.itemId) + " · #" + hit.itemId + " · P10 " + alerts.formatCopper(hit.p10));
+        AuctionData.face(button, hit.icon, (hit.name || "Item " + hit.itemId) + " · #" + hit.itemId + " · P10 ");
+        AuctionData.paintMoney(button, hit.p10);
         button.addEventListener("click", () => showHistory(hit, true));
         item.append(button);
         resultsNode.append(item);

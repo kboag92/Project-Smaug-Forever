@@ -50,6 +50,42 @@
     };
   }
 
+  // Split copper into the coins we show. A higher coin keeps the zeros under it.
+  // 200 copper is 2 silver and 0 copper. 10000 copper is 1 gold, 0 silver, 0 copper.
+  function moneyParts(copper) {
+    const abs = Math.abs(Number(copper));
+    const safe = Number.isFinite(abs) ? abs : 0;
+    const gold = Math.floor(safe / 10000);
+    const silver = Math.floor((safe % 10000) / 100);
+    const coins = Math.floor(safe % 100);
+    const parts = [];
+    if (gold > 0) parts.push({ n: gold, coin: "gold" });
+    if (gold > 0 || silver > 0) parts.push({ n: silver, coin: "silver" });
+    parts.push({ n: coins, coin: "copper" });
+    return parts;
+  }
+
+  // Canvas labels cannot hold images. "1s 60c" is the same split as the coins.
+  function moneyText(copper) {
+    const letter = { gold: "g", silver: "s", copper: "c" };
+    return moneyParts(copper).map((part) => part.n + letter[part.coin]).join(" ");
+  }
+
+  // Append the number and coin picture. The caller owns whatever is already in parent.
+  function paintMoney(parent, copper) {
+    for (const part of moneyParts(copper)) {
+      const bit = document.createElement("span");
+      bit.className = "coin";
+      bit.append(document.createTextNode(String(part.n)));
+      const img = document.createElement("img");
+      img.className = "coin-icon";
+      img.alt = "";
+      img.src = "coin-" + part.coin + ".svg";
+      bit.append(img);
+      parent.append(bit);
+    }
+  }
+
   // Put the stored icon in front of a name. No icon means the text stands alone.
   function face(parent, icon, text) {
     parent.replaceChildren();
@@ -134,5 +170,5 @@
     return { houseId, scanCount: raw.length, days: days.size, rows: window.CycleScore.findCycles([...grouped.values()]) };
   }
 
-  window.AuctionData = { search, history, latest, cycles, face };
+  window.AuctionData = { search, history, latest, cycles, face, moneyText, paintMoney };
 })();

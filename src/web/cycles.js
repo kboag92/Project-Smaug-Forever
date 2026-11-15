@@ -7,14 +7,6 @@
   let query = "";
   let sort = { field: "edge", asc: false };
 
-  function money(copper) {
-    if (copper == null) return "—";
-    const abs = Math.abs(Number(copper));
-    const gold = Math.floor(abs / 10000);
-    const silver = Math.floor((abs % 10000) / 100);
-    return gold + "g " + silver + "s " + (abs % 100) + "c";
-  }
-
   function qtyText(qty) {
     if (qty == null) return "—";
     return qty >= 10 ? String(Math.round(qty)) : qty.toFixed(1);
@@ -56,20 +48,22 @@
       const cells = [
         [nameOf(row), ""],
         [row.cheap, "cheap"],
-        [money(row.low), "num low"],
+        [row.low, "num low"],
         [row.rich, "rich"],
-        [money(row.high), "num high"],
-        [money(row.edge), "num"],
+        [row.high, "num high"],
+        [row.edge, "num"],
         [(row.swing >= 0 ? "+" : "") + Math.round(row.swing) + "%", "num"],
         [phase, phase === "BUY" ? "buy" : phase === "SELL" ? "sell" : ""],
         [Math.round(row.conf) + "%", "num"],
         [String(row.days), "num"],
         [qtyText(row.avgQty), "num"],
       ];
+      const moneyAt = { 2: true, 4: true, 5: true };
       cells.forEach((cell, index) => {
         const td = document.createElement("td");
         td.className = cell[1];
         if (index === 0) AuctionData.face(td, row.icon, cell[0]);
+        else if (moneyAt[index]) AuctionData.paintMoney(td, cell[0]);
         else td.textContent = cell[0];
         if (index === 8) td.title = row.confMode === "same" ? "Same-day windows" : "Cross-day fallback";
         tr.append(td);

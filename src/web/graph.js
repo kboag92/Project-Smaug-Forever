@@ -1,4 +1,4 @@
-// Price lines sit on the left axis, in gold.
+// Price lines sit on the left axis.
 // Volume bars sit on the right axis, in listed units.
 // A separate axis keeps a large stack from flattening the price lines.
 (function () {
@@ -79,8 +79,12 @@
           x: { ticks: { color: "#cbb892", maxTicksLimit: 8 } },
           y: {
             position: "left",
-            ticks: { color: "#cbb892" },
-            title: { display: true, text: "Gold", color: "#f3e6c8" },
+            ticks: {
+              color: "#cbb892",
+              // The scale is still gold units. The label is the same split as the coin pictures.
+              callback(value) { return options.formatCopper(Math.round(Number(value) * 10000)); },
+            },
+            title: { display: true, text: "Price", color: "#f3e6c8" },
           },
           // Quantity only. Its grid is hidden so it does not cross the gold lines.
           y1: {

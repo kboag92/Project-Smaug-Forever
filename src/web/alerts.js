@@ -127,11 +127,9 @@
     return fired;
   }
 
+  // The chart draws this as text. The page uses paintMoney for the same split with pictures.
   function formatCopper(copper) {
-    const abs = Math.abs(Number(copper));
-    const gold = Math.floor(abs / 10000);
-    const silver = Math.floor((abs % 10000) / 100);
-    return gold + "g " + silver + "s " + (abs % 100) + "c";
+    return AuctionData.moneyText(copper);
   }
 
   function beep() {

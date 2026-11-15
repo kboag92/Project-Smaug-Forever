@@ -69,18 +69,15 @@
         const tr = document.createElement("tr");
         if (row.unread) tr.className = "unread";
         const type = typeOf(row);
-        const cells = [
-          type,
-          itemName(row),
-          api.formatCopper(row.price),
-          row.last == null ? "—" : api.formatCopper(row.last),
-          when(row.time),
-        ];
-        cells.forEach((text, index) => {
+        const cells = [type, itemName(row), row.price, row.last, when(row.time)];
+        cells.forEach((value, index) => {
           const td = document.createElement("td");
           td.className = index === 0 ? type.toLowerCase() : "";
-          if (index === 1) AuctionData.face(td, row.icon, text);
-          else td.textContent = text;
+          if (index === 1) AuctionData.face(td, row.icon, value);
+          else if (index === 2 || index === 3) {
+            if (value == null) td.textContent = "—";
+            else AuctionData.paintMoney(td, value);
+          } else td.textContent = value;
           tr.append(td);
         });
         const remove = document.createElement("button");

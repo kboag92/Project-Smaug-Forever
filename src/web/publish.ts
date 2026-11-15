@@ -14,6 +14,9 @@ const pages = [
   "data.js",
   "graph.js",
   "recent.js",
+  "coin-gold.svg",
+  "coin-silver.svg",
+  "coin-copper.svg",
 ];
 
 const webDir = dirname(fileURLToPath(import.meta.url));
