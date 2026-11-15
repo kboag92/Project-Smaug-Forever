@@ -2,8 +2,9 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { scanConfig } from "../config.js";
 import { loadLocalEnv } from "../env.js";
-import { buildCycles } from "./bundle-cycles.js";
+import { buildArbitrage, buildCycles } from "./bundle-cycles.js";
 import { configSource } from "./site-config.js";
 
 // Local pages only. Prices are read in the browser with the publishable key.
@@ -23,6 +24,10 @@ const pages: Record<string, string> = {
   "/cycles": "cycles.html",
   "/cycles.html": "cycles.html",
   "/cycles.js": "cycles.js",
+  "/arbitrage": "arbitrage.html",
+  "/arbitrage.html": "arbitrage.html",
+  "/arbitrage.js": "arbitrage.js",
+  "/arbitrage-score.js": "arbitrage-score.js",
   "/cycles-score.js": "cycles-score.js",
   "/coin-gold.svg": "coin-gold.svg",
   "/coin-silver.svg": "coin-silver.svg",
@@ -30,12 +35,18 @@ const pages: Record<string, string> = {
 };
 
 await buildCycles(webDir);
+await buildArbitrage(webDir);
 
 const port = 4173;
 createServer((request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
   if (request.method === "GET" && url.pathname === "/config.js") {
-    const script = configSource(process.env.SUPABASE_URL ?? "", process.env.SUPABASE_ANON_KEY ?? "");
+    const script = configSource(process.env.SUPABASE_URL ?? "", process.env.SUPABASE_ANON_KEY ?? "", {
+      region: scanConfig.region,
+      rulesetId: scanConfig.rulesetId,
+      allianceHouseId: scanConfig.houseId,
+      neutralHouseId: scanConfig.neutralHouseId,
+    });
     response.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
     response.end(script);
     return;

@@ -17,15 +17,23 @@ function typeScriptImports(): Plugin {
   };
 }
 
-// One browser file for the cycle rules, so the page does not keep a second copy.
-export async function buildCycles(webDir: string): Promise<void> {
+// One browser file for a rule module, so the page does not keep a second copy.
+async function buildRules(webDir: string, entry: string, outfile: string): Promise<void> {
   await build({
-    entryPoints: [join(webDir, "cycles-entry.ts")],
+    entryPoints: [join(webDir, entry)],
     bundle: true,
     format: "iife",
     platform: "browser",
-    outfile: join(webDir, "cycles-score.js"),
+    outfile: join(webDir, outfile),
     plugins: [typeScriptImports()],
     logLevel: "silent",
   });
+}
+
+export function buildCycles(webDir: string): Promise<void> {
+  return buildRules(webDir, "cycles-entry.ts", "cycles-score.js");
+}
+
+export function buildArbitrage(webDir: string): Promise<void> {
+  return buildRules(webDir, "arbitrage-entry.ts", "arbitrage-score.js");
 }

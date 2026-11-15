@@ -5,9 +5,10 @@ import { loadLocalEnv, requireEnv } from "./env.js";
 import { aggregateMarkets } from "./process/aggregate.js";
 import { factionFromName, pickHouses, type HouseCandidate } from "./process/pick-houses.js";
 import { createDatabase, markHouseUnlisted, recordFailedScan, saveMarkets, upsertHouse } from "./store/database.js";
+import { trimHouseHistory } from "./store/trim-history.js";
 import { findUnnamedItemIds, listKnownHouses, markNameAttempts, saveItems } from "./store/items.js";
 
-// One pass: read the configured auction house and store its four datapoints.
+// One pass: read the Alliance house and the neutral house, and store both books.
 async function main(): Promise<void> {
   loadLocalEnv();
 
@@ -26,14 +27,15 @@ async function main(): Promise<void> {
       console.log(`Skipping house ${entry.id} (${entry.name}): faction is unknown.`);
       continue;
     }
-    // Horde and Blackwater are not downloaded when they are absent from scanConfig.factions.
+    // Horde is not downloaded. Alliance and Blackwater each have five books.
     if (!scanConfig.factions.includes(faction)) {
       console.log(`Skipping house ${entry.id} (${entry.name}): ${faction} is not in this scan.`);
       continue;
     }
-    // Several Alliance houses share this ruleset. Only the chosen id is the market we publish.
-    if (entry.id !== scanConfig.houseId) {
-      console.log(`Skipping house ${entry.id} (${entry.name}): this scan stores house ${scanConfig.houseId}.`);
+    // Only the two pinned ids are stored. The fullest book would be the wrong market.
+    const storedIds = new Set([scanConfig.houseId, scanConfig.neutralHouseId]);
+    if (!storedIds.has(entry.id)) {
+      console.log(`Skipping house ${entry.id} (${entry.name}): this scan stores houses ${scanConfig.houseId} and ${scanConfig.neutralHouseId}.`);
       continue;
     }
 
@@ -74,6 +76,10 @@ async function main(): Promise<void> {
       });
       const markets = aggregateMarkets(house.stacks);
       await saveMarkets(db, houseId, markets, scannedAt, scanConfig.dailyRetentionDays);
+      // Alliance history stays. Only the neutral book is cut back to a few days.
+      if (house.blizzardId === scanConfig.neutralHouseId) {
+        await trimHouseHistory(db, houseId, scanConfig.neutralRetentionDays);
+      }
       for (const market of markets) seenItemIds.add(market.itemId);
       savedHouses += 1;
       console.log(`Saved ${markets.length} items for ${house.name} (Blizzard house ${house.blizzardId}).`);
@@ -131,8 +137,10 @@ async function retireSkippedHouses(
 ): Promise<void> {
   try {
     const known = await listKnownHouses(db, scanConfig.region, scanConfig.rulesetId);
+    // A failed read of one pinned house must not clear the other one.
+    const pinned = new Set([scanConfig.houseId, scanConfig.neutralHouseId]);
     for (const house of known) {
-      if (chosenIds.has(house.blizzardId)) continue;
+      if (chosenIds.has(house.blizzardId) || pinned.has(house.blizzardId)) continue;
       await markHouseUnlisted(db, house.id, new Date());
       console.log(`Marked house ${house.blizzardId} unlisted because this scan stores another house.`);
     }

@@ -2,6 +2,8 @@
 // The service-role key is never sent here.
 (function () {
   const PAGE = 1000;
+  // Blizzard house id to the database id. Search and cycles stay on Alliance.
+  const houseCache = new Map();
 
   function site() {
     const config = window.SITE_CONFIG || {};
@@ -99,11 +101,29 @@
     parent.append(document.createTextNode(text));
   }
 
+  // 110 is Alliance and 116 is neutral. The tables use the database id, not the Blizzard id.
+  async function internalHouseId(blizzardId) {
+    if (houseCache.has(blizzardId)) return houseCache.get(blizzardId);
+    const config = site();
+    if (!config.region || !config.allianceHouseId) {
+      throw new Error("Site config is missing the auction house ids.");
+    }
+    const rows = await rest(
+      "houses?select=id&region=eq." + encodeURIComponent(config.region) +
+      "&ruleset_id=eq." + config.rulesetId + "&blizzard_id=eq." + blizzardId,
+    );
+    if (!rows.length) throw new Error("Auction house " + blizzardId + " has not been stored yet.");
+    houseCache.set(blizzardId, rows[0].id);
+    return rows[0].id;
+  }
+
   async function search(query) {
     const trimmed = String(query || "").trim();
     if (!trimmed) return [];
+    // Neutral rows stay off this search. The arbitrage page is where the two books meet.
+    const alliance = "&house_id=eq." + await internalHouseId(site().allianceHouseId);
     if (/^\d+$/.test(trimmed)) {
-      const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&is_listed=eq.true&item_id=eq." + trimmed);
+      const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&is_listed=eq.true&item_id=eq." + trimmed + alliance);
       const named = await rest("items?select=id,name,icon_url&id=eq." + trimmed);
       const profile = named[0] ? { name: named[0].name, icon: named[0].icon_url } : null;
       return prices.map((row) => asHit(row, profile));
@@ -112,7 +132,7 @@
     const named = await rest("items?select=id,name,icon_url&name=ilike.*" + encodeURIComponent(safe) + "*&limit=20");
     if (!named.length) return [];
     const ids = named.map((row) => row.id).join(",");
-    const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&is_listed=eq.true&item_id=in.(" + ids + ")");
+    const prices = await rest("latest_prices?select=house_id,item_id,p10_price,median_price,average_price,quantity,is_listed&is_listed=eq.true&item_id=in.(" + ids + ")" + alliance);
     const profiles = new Map(named.map((row) => [row.id, { name: row.name, icon: row.icon_url }]));
     return prices.map((row) => asHit(row, profiles.get(row.item_id)));
   }
@@ -128,9 +148,8 @@
 
   // Last 21 days, then the same cycle rules as the scanner module.
   async function cycles() {
-    const houses = await rest("scans?select=house_id&status=eq.success&order=scanned_at.desc&limit=1");
-    if (!houses.length) return { houseId: null, scanCount: 0, days: 0, rows: [] };
-    const houseId = houses[0].house_id;
+    // The newest scan may be the neutral house. Cycles stay on the Alliance book.
+    const houseId = await internalHouseId(site().allianceHouseId);
     const since = new Date(Date.now() - 21 * 86400000).toISOString();
     const [raw, named] = await Promise.all([
       allRows("scan_prices?select=item_id,scanned_at,p10_price,median_price,quantity&house_id=eq." + houseId + "&scanned_at=gte." + encodeURIComponent(since) + "&order=scanned_at.asc", 120000),
@@ -170,5 +189,5 @@
     return { houseId, scanCount: raw.length, days: days.size, rows: window.CycleScore.findCycles([...grouped.values()]) };
   }
 
-  window.AuctionData = { search, history, latest, cycles, face, moneyText, paintMoney };
+  window.AuctionData = { search, history, latest, cycles, face, moneyText, paintMoney, houseId: internalHouseId, rows: allRows };
 })();

@@ -1,13 +1,16 @@
 import { cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildCycles } from "./bundle-cycles.js";
+import { scanConfig } from "../config.js";
+import { buildArbitrage, buildCycles } from "./bundle-cycles.js";
 import { configSource } from "./site-config.js";
 
 // Files GitHub Pages serves. The TypeScript sources and the service-role key stay out.
 const pages = [
   "index.html",
   "cycles.html",
+  "arbitrage.html",
+  "arbitrage.js",
   "alerts.js",
   "alert-list.js",
   "cycles.js",
@@ -29,8 +32,15 @@ if (!url || !anonKey) {
 }
 
 await buildCycles(webDir);
+await buildArbitrage(webDir);
 mkdirSync(outDir, { recursive: true });
 for (const file of pages) cpSync(join(webDir, file), join(outDir, file));
 cpSync(join(webDir, "cycles-score.js"), join(outDir, "cycles-score.js"));
-writeFileSync(join(outDir, "config.js"), configSource(url, anonKey));
+cpSync(join(webDir, "arbitrage-score.js"), join(outDir, "arbitrage-score.js"));
+writeFileSync(join(outDir, "config.js"), configSource(url, anonKey, {
+  region: scanConfig.region,
+  rulesetId: scanConfig.rulesetId,
+  allianceHouseId: scanConfig.houseId,
+  neutralHouseId: scanConfig.neutralHouseId,
+}));
 console.log("Static site written to dist-site");
