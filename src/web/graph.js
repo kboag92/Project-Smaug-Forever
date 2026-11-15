@@ -2,6 +2,18 @@
 // Volume bars sit on the right axis, in listed units.
 // A separate axis keeps a large stack from flattening the price lines.
 (function () {
+  // The tallest bar reaches this share of the chart. 20% shows a restock
+  // without covering the price lines above it.
+  const volumeShare = 0.2;
+
+  // Headroom above the peak keeps the bars in that bottom band.
+  // Tick marks stay on the real quantity, so the top label meets the tallest bar.
+  function volumeScale(peak) {
+    const max = peak > 0 ? peak / volumeShare : 1;
+    const marks = peak > 0 ? [0, Math.round(peak / 2), Math.round(peak)] : [0];
+    return { max, marks: [...new Set(marks)] };
+  }
+
   function priceLine(label, data, color) {
     return {
       type: "line",
@@ -36,6 +48,8 @@
     const gold = (key) => points.map((point) => (point[key] == null ? null : point[key] / 10000));
     // Missing quantity is a gap. It is not drawn as zero.
     const volume = points.map((point) => (point.quantity == null ? null : Number(point.quantity)));
+    const peak = volume.reduce((max, value) => (value == null ? max : Math.max(max, value)), 0);
+    const volumeAxis = volumeScale(peak);
     return new Chart(canvas, {
       type: "line",
       data: {
@@ -90,6 +104,10 @@
           y1: {
             position: "right",
             beginAtZero: true,
+            max: volumeAxis.max,
+            afterBuildTicks(scale) {
+              scale.ticks = volumeAxis.marks.map((value) => ({ value }));
+            },
             grid: { drawOnChartArea: false },
             ticks: { color: "#7dcea0" },
             title: { display: true, text: "Quantity", color: "#7dcea0" },
