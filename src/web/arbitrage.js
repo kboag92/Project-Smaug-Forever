@@ -63,7 +63,11 @@
         const td = document.createElement("td");
         td.className = cell[1];
         if (index === 0) AuctionData.face(td, row.icon, cell[0]);
-        else if (moneyAt[index]) AuctionData.paintMoney(td, row[moneyAt[index]]);
+        else if (moneyAt[index]) {
+          AuctionData.paintMoney(td, row[moneyAt[index]]);
+          // Return on the buy, next to the copper profit. 164 on a 596 buy is 28%.
+          if (index === 5) td.append(document.createTextNode(" " + Math.round(row.edge / row.buy * 100) + "%"));
+        }
         else td.textContent = cell[0];
         tr.append(td);
       });
