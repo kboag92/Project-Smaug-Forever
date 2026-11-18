@@ -1,8 +1,8 @@
 // Basket moves for the enchanting index.
-// Current price is today's daily median. The baseline is the median of the
-// daily medians on the UTC days before today. A window needs every one of those
-// days, so a 7-day figure is never filled in from a shorter stretch.
-// Each material gets one vote. A shard priced in gold does not outweigh a dust priced in silver.
+// Current price is today's daily median. Each column compares it with the
+// median stored on the UTC day 1, 3, or 7 days earlier. The days in between
+// are ignored. Each material gets one vote, so a shard priced in gold does
+// not outweigh a dust priced in silver.
 
 import { baskets, MATS, type EnchantMat } from "./enchant-mats.js";
 
@@ -40,20 +40,6 @@ export function shiftUtcDay(day: string, delta: number): string {
   return new Date(Date.UTC(year, month - 1, date + delta)).toISOString().slice(0, 10);
 }
 
-// Middle price. A complete 1, 3, or 7 day window is odd, so this is the middle day after sorting by price.
-function median(values: number[]): number {
-  const sorted = values.slice().sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 1) return sorted[mid];
-  return Math.floor((sorted[mid - 1] + sorted[mid]) / 2);
-}
-
-function priorDates(today: string, count: number): string[] {
-  const dates: string[] = [];
-  for (let ago = count; ago >= 1; ago -= 1) dates.push(shiftUtcDay(today, -ago));
-  return dates;
-}
-
 // Last row for a day wins. A non-positive median is not a usable price.
 function pricesByItem(rows: PriceRow[]): Map<number, Map<string, number>> {
   const byItem = new Map<number, Map<string, number>>();
@@ -69,24 +55,18 @@ function pricesByItem(rows: PriceRow[]): Map<number, Map<string, number>> {
   return byItem;
 }
 
-// Null when today is missing, or any baseline day is missing, or the baseline is not a positive price.
-function move(current: number | null, days: Map<string, number> | undefined, dates: string[]): number | null {
+// Null when today is missing, or that comparison day is missing.
+function move(current: number | null, days: Map<string, number> | undefined, ago: number, today: string): number | null {
   if (current == null || !days) return null;
-  const values: number[] = [];
-  for (const date of dates) {
-    const price = days.get(date);
-    if (price == null) return null;
-    values.push(price);
-  }
-  const baseline = median(values);
-  if (baseline <= 0) return null;
+  const baseline = days.get(shiftUtcDay(today, -ago));
+  if (baseline == null || baseline <= 0) return null;
   return (current - baseline) / baseline;
 }
 
 function scoreItem(mat: EnchantMat, today: string, days: Map<string, number> | undefined): ItemScore {
   const current = days?.get(today) ?? null;
   const pct = { 1: null, 3: null, 7: null } as Record<WindowDays, number | null>;
-  for (const window of WINDOWS) pct[window] = move(current, days, priorDates(today, window));
+  for (const window of WINDOWS) pct[window] = move(current, days, window, today);
   return { item: mat, current, pct };
 }
 

@@ -116,7 +116,7 @@
       median: Number(row.median_price),
     })));
     render(scores, icons);
-    statusNode.textContent = "Alliance medians for " + today + " UTC. A dash means a day in that window is missing.";
+    statusNode.textContent = "Alliance medians for " + today + " UTC. A dash means that comparison day is missing.";
   }
 
   load().catch((error) => {

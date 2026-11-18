@@ -39,16 +39,28 @@ test("a 1-day move is today against yesterday", () => {
   assert.equal(dust.pct[7], null);
 });
 
-test("a 3-day move uses the median of the three prior days", () => {
-  assert.equal(shiftUtcDay(TODAY, -1), "2026-02-28");
+test("a 3-day move uses the median from exactly 3 days ago", () => {
+  assert.equal(shiftUtcDay(TODAY, -3), "2026-02-26");
   const scores = scoreBaskets(TODAY, [
     row(10939, "2026-02-26", 100),
     row(10939, "2026-02-27", 300),
     row(10939, "2026-02-28", 200),
     row(10939, TODAY, 250),
   ]);
-  // Sorted prior prices are 100, 200, 300. The middle one is the baseline.
-  assert.equal(item(scores, "tier-1", 10939).pct[3], 0.25);
+  // 100 is the price 3 days ago. 300 and 200 are the days in between.
+  assert.equal(item(scores, "tier-1", 10939).pct[3], 1.5);
+});
+
+test("a 7-day move uses the median from exactly 7 days ago", () => {
+  assert.equal(shiftUtcDay(TODAY, -7), "2026-02-22");
+  const scores = scoreBaskets(TODAY, [
+    row(10939, "2026-02-22", 200),
+    row(10939, "2026-02-23", 50),
+    row(10939, TODAY, 250),
+  ]);
+  // 200 is the price 7 days ago. 50 is a later day and does not count.
+  assert.equal(item(scores, "tier-1", 10939).pct[7], 0.25);
+  assert.equal(item(scores, "tier-1", 10939).pct[1], null);
 });
 
 test("a missing baseline day drops that window", () => {
