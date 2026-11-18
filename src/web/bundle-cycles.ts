@@ -37,3 +37,7 @@ export function buildCycles(webDir: string): Promise<void> {
 export function buildArbitrage(webDir: string): Promise<void> {
   return buildRules(webDir, "arbitrage-entry.ts", "arbitrage-score.js");
 }
+
+export function buildEnchant(webDir: string): Promise<void> {
+  return buildRules(webDir, "enchant-entry.ts", "enchant-score.js");
+}
