@@ -73,9 +73,20 @@
     }
   }
 
-  document.querySelector("#search").addEventListener("input", (event) => {
+  const searchInput = document.querySelector("#search");
+  searchInput.addEventListener("input", (event) => {
     query = event.target.value;
     render();
+  });
+  // Names already on this page. Liquid hides the same thin books the table hides.
+  AuctionSuggest.attach(searchInput, {
+    lookup: () => report.rows
+      .filter((row) => !liquid || row.avgQty >= 3)
+      .map((row) => ({ itemId: row.itemId, name: nameOf(row), icon: row.icon })),
+    onPick: (item) => {
+      searchInput.value = item.name;
+      searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+    },
   });
   document.querySelector("#liquid").addEventListener("click", () => {
     liquid = true;

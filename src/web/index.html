@@ -76,6 +76,8 @@
   <script src="graph.js"></script>
   <script src="recent.js"></script>
   <script src="alert-list.js"></script>
+  <script src="suggest-rank.js"></script>
+  <script src="suggest.js"></script>
   <script src="alerts.js"></script>
   <script>
     const statusNode = document.querySelector("#status");
@@ -176,6 +178,19 @@
       } catch (error) {
         statusNode.textContent = error.message || "Search failed.";
       }
+    });
+    // Listed Alliance items only. A choice searches by id so the chart opens on that item.
+    AuctionSuggest.attach(queryNode, {
+      grow: true,
+      wait: 200,
+      lookup: async (text) => {
+        const hits = await AuctionData.search(text);
+        return hits.map((hit) => ({ itemId: hit.itemId, name: hit.name || "", icon: hit.icon }));
+      },
+      onPick: (item) => {
+        queryNode.value = String(item.itemId);
+        document.querySelector("#search-form").requestSubmit();
+      },
     });
     const openItem = new URLSearchParams(location.search).get("item");
     if (openItem) { queryNode.value = openItem; document.querySelector("#search-form").requestSubmit(); }

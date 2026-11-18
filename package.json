@@ -5,7 +5,7 @@
   "scripts": {
     "start": "tsx src/main.ts",
     "site": "tsx src/web/server.ts",
-    "test": "tsx --test src/process/aggregate.test.ts src/web/cycles.test.ts src/web/arbitrage.test.ts src/store/items.test.ts src/web/site-config.test.ts src/web/enchant-index.test.ts"
+    "test": "tsx --test src/process/aggregate.test.ts src/web/cycles.test.ts src/web/arbitrage.test.ts src/store/items.test.ts src/web/site-config.test.ts src/web/enchant-index.test.ts src/web/suggest-rank.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.0"

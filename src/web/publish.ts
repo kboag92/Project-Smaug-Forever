@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanConfig } from "../config.js";
-import { buildArbitrage, buildCycles, buildEnchant } from "./bundle-cycles.js";
+import { buildArbitrage, buildCycles, buildEnchant, buildSuggest } from "./bundle-cycles.js";
 import { configSource } from "./site-config.js";
 
 // Files GitHub Pages serves. The TypeScript sources and the service-role key stay out.
@@ -19,6 +19,7 @@ const pages = [
   "data.js",
   "graph.js",
   "recent.js",
+  "suggest.js",
   "coin-gold.svg",
   "coin-silver.svg",
   "coin-copper.svg",
@@ -36,11 +37,13 @@ if (!url || !anonKey) {
 await buildCycles(webDir);
 await buildArbitrage(webDir);
 await buildEnchant(webDir);
+await buildSuggest(webDir);
 mkdirSync(outDir, { recursive: true });
 for (const file of pages) cpSync(join(webDir, file), join(outDir, file));
 cpSync(join(webDir, "cycles-score.js"), join(outDir, "cycles-score.js"));
 cpSync(join(webDir, "arbitrage-score.js"), join(outDir, "arbitrage-score.js"));
 cpSync(join(webDir, "enchant-score.js"), join(outDir, "enchant-score.js"));
+cpSync(join(webDir, "suggest-rank.js"), join(outDir, "suggest-rank.js"));
 writeFileSync(join(outDir, "config.js"), configSource(url, anonKey, {
   region: scanConfig.region,
   rulesetId: scanConfig.rulesetId,

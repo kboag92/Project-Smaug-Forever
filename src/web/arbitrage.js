@@ -76,9 +76,20 @@
     }
   }
 
-  document.querySelector("#search").addEventListener("input", (event) => {
+  const searchInput = document.querySelector("#search");
+  searchInput.addEventListener("input", (event) => {
     query = event.target.value;
     render();
+  });
+  // Names already on this page. Liquid hides a side with fewer than 10 units.
+  AuctionSuggest.attach(searchInput, {
+    lookup: () => deals
+      .filter((row) => !liquid || (row.buyQty >= LIQUID_QTY && row.sellQty >= LIQUID_QTY))
+      .map((row) => ({ itemId: row.itemId, name: nameOf(row), icon: row.icon })),
+    onPick: (item) => {
+      searchInput.value = item.name;
+      searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+    },
   });
   document.querySelector("#liquid").addEventListener("click", () => {
     liquid = true;
