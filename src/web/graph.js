@@ -5,6 +5,31 @@
   // The tallest bar reaches this share of the chart. 20% shows a restock
   // without covering the price lines above it.
   const volumeShare = 0.2;
+  // One choice for every item in this browser. A missing name uses the default.
+  const linesKey = "forever-auction-lines";
+  const offByDefault = ["10–50", "Median", "Average"];
+
+  function savedLines() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(linesKey) || "{}");
+      return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  // P10 and Volume start on. The other three price lines start off.
+  function lineVisible(label) {
+    const saved = savedLines();
+    if (typeof saved[label] === "boolean") return saved[label];
+    return offByDefault.indexOf(label) === -1;
+  }
+
+  function rememberLine(label, visible) {
+    const saved = savedLines();
+    saved[label] = visible;
+    localStorage.setItem(linesKey, JSON.stringify(saved));
+  }
 
   // Headroom above the peak keeps the bars in that bottom band.
   // Tick marks stay on the real quantity, so the top label meets the tallest bar.
@@ -23,6 +48,7 @@
       borderColor: color,
       tension: 0.15,
       order: 1,
+      hidden: !lineVisible(label),
     };
   }
 
@@ -70,6 +96,7 @@
             order: 2,
             categoryPercentage: 1,
             barPercentage: 0.85,
+            hidden: !lineVisible("Volume"),
           },
         ].concat(alertLines(labels, options.watches, options.formatCopper)),
       },
@@ -77,6 +104,16 @@
         responsive: true,
         onClick(event) { options.onClickY(event.y); },
         plugins: {
+          legend: {
+            // Chart.js hides the series. We keep that choice for the next item.
+            // Alert labels change with the price, so they are not stored.
+            onClick(event, legendItem, legend) {
+              const label = String(legendItem.text || "");
+              Chart.defaults.plugins.legend.onClick(event, legendItem, legend);
+              if (label.startsWith("Alert ")) return;
+              rememberLine(label, legend.chart.isDatasetVisible(legendItem.datasetIndex));
+            },
+          },
           tooltip: {
             callbacks: {
               label(context) {
