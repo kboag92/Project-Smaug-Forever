@@ -6,4 +6,5 @@ src/web/cycles-score.js
 src/web/arbitrage-score.js
 src/web/enchant-score.js
 src/web/suggest-rank.js
+src/web/portfolio-score.js
 src/web/config.js

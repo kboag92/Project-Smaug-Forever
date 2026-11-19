@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanConfig } from "../config.js";
 import { loadLocalEnv } from "../env.js";
-import { buildArbitrage, buildCycles, buildEnchant, buildSuggest } from "./bundle-cycles.js";
+import { buildArbitrage, buildCycles, buildEnchant, buildPortfolio, buildSuggest } from "./bundle-cycles.js";
 import { configSource } from "./site-config.js";
 
 // Local pages only. Prices are read in the browser with the publishable key.
@@ -33,6 +33,12 @@ const pages: Record<string, string> = {
   "/enchant.html": "enchant.html",
   "/enchant.js": "enchant.js",
   "/enchant-score.js": "enchant-score.js",
+  "/portfolio": "portfolio.html",
+  "/portfolio.html": "portfolio.html",
+  "/portfolio.js": "portfolio.js",
+  "/portfolio-holdings.js": "portfolio-holdings.js",
+  "/portfolio-table.js": "portfolio-table.js",
+  "/portfolio-score.js": "portfolio-score.js",
   "/suggest.js": "suggest.js",
   "/suggest-rank.js": "suggest-rank.js",
   "/coin-gold.svg": "coin-gold.svg",
@@ -44,6 +50,7 @@ await buildCycles(webDir);
 await buildArbitrage(webDir);
 await buildEnchant(webDir);
 await buildSuggest(webDir);
+await buildPortfolio(webDir);
 
 const port = 4173;
 createServer((request, response) => {

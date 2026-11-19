@@ -45,3 +45,7 @@ export function buildEnchant(webDir: string): Promise<void> {
 export function buildSuggest(webDir: string): Promise<void> {
   return buildRules(webDir, "suggest-entry.ts", "suggest-rank.js");
 }
+
+export function buildPortfolio(webDir: string): Promise<void> {
+  return buildRules(webDir, "portfolio-entry.ts", "portfolio-score.js");
+}
